@@ -80,8 +80,8 @@ public class RecommendationCard extends JPanel
     public void update(FlipRecommendation rec)
     {
         nameLabel.setText(rec.getItemName() + (rec.isMembers() ? " (m)" : ""));
-        priceLabel.setText("Buy: " + PriceFormat.format(rec.getBuyPrice())
-            + "  Sell: " + PriceFormat.format(rec.getSellPrice()));
+        priceLabel.setText("Buy: " + PriceFormat.formatExact(rec.getBuyPrice())
+            + "  Sell: " + PriceFormat.formatExact(rec.getSellPrice()));
         marginLabel.setText("Margin: " + PriceFormat.format(rec.getNetMargin()));
         roiLabel.setText("ROI: " + PriceFormat.formatRoi(rec.getRoi()));
         fillLabel.setText("Fill: " + PriceFormat.formatFillTime(rec.getEstimatedFillMinutes()));

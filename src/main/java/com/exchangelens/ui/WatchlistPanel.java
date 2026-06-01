@@ -65,8 +65,8 @@ public class WatchlistPanel extends JPanel
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
 
         JLabel info = new JLabel("<html><b>" + rec.getItemName() + "</b><br/>"
-            + "Buy: " + PriceFormat.format(rec.getBuyPrice())
-            + "  Sell: " + PriceFormat.format(rec.getSellPrice())
+            + "Buy: " + PriceFormat.formatExact(rec.getBuyPrice())
+            + "  Sell: " + PriceFormat.formatExact(rec.getSellPrice())
             + "  Margin: " + PriceFormat.format(rec.getNetMargin())
             + "  ROI: " + PriceFormat.formatRoi(rec.getRoi())
             + "  Fill: " + PriceFormat.formatFillTime(rec.getEstimatedFillMinutes())

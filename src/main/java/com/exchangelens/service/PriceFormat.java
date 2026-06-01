@@ -12,6 +12,11 @@ public final class PriceFormat
         return String.valueOf(gp);
     }
 
+    public static String formatExact(long gp)
+    {
+        return String.format("%,d gp", gp);
+    }
+
     public static String formatRoi(double roi)
     {
         return String.format("%.2f%%", roi * 100.0);
