@@ -58,11 +58,11 @@ public interface ExchangeLensConfig extends Config
 		return 10_000_000;
 	}
 
-	@Range(min = 30, max = 600)
+	@Range(min = 10, max = 600)
 	@ConfigItem(
 		keyName = "refreshIntervalSeconds",
 		name = "Refresh Interval (seconds)",
-		description = "How often to refresh market data (minimum 30 seconds)"
+		description = "How often to refresh market data (minimum 10 seconds)"
 	)
 	default int refreshIntervalSeconds()
 	{
