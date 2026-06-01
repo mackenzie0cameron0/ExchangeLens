@@ -22,22 +22,38 @@ public final class RecommendationEngine
         boolean includeMembersItems,
         Set<Integer> blocklist)
     {
+        return rank(items, minimumNetMargin, minimumRoi, minimumHourlyVolume,
+            maximumCapital, Integer.MAX_VALUE, hideHighRisk, includeMembersItems, blocklist);
+    }
+
+    public static List<FlipRecommendation> rank(
+        List<MarketItem> items,
+        int minimumNetMargin,
+        double minimumRoi,
+        int minimumHourlyVolume,
+        int maximumCapital,
+        int availableCash,
+        boolean hideHighRisk,
+        boolean includeMembersItems,
+        Set<Integer> blocklist)
+    {
         return items.stream()
             .filter(item -> !blocklist.contains(item.getItemId()))
             .filter(item -> includeMembersItems || !item.isMembers())
             .filter(item -> item.getLatestLow() != null && item.getLatestLow() > 0)
             .filter(item -> item.getLatestHigh() != null && item.getLatestHigh() > 0)
-            .map(RecommendationEngine::score)
+            .map(item -> score(item, availableCash))
             .filter(Objects::nonNull)
             .filter(r -> r.getNetMargin() > minimumNetMargin)
             .filter(r -> r.getRoi() >= minimumRoi)
             .filter(r -> r.getOneHourVolume() >= minimumHourlyVolume)
+            .filter(r -> r.getCapitalRequired() <= maximumCapital)
             .filter(r -> !hideHighRisk || r.getRiskLevel() != RiskLevel.HIGH)
             .sorted(Comparator.comparingDouble(FlipRecommendation::getFinalScore).reversed())
             .collect(Collectors.toList());
     }
 
-    private static FlipRecommendation score(MarketItem item)
+    private static FlipRecommendation score(MarketItem item, int availableCash)
     {
         int buyPrice  = item.getLatestLow();
         int sellPrice = item.getLatestHigh();
@@ -107,8 +123,8 @@ public final class RecommendationEngine
             .buyLimit(buyLimit)
             .capitalRequired(capitalRequired)
             .estimatedProfitPerLimit(profitPerLimit)
-            .affordableQuantity(buyLimit)
-            .affordableProfit(profitPerLimit)
+            .affordableQuantity(Math.min(buyLimit, availableCash / buyPrice))
+            .affordableProfit((long) Math.min(buyLimit, availableCash / buyPrice) * netMargin)
             .fiveMinVolume(fiveMinVol)
             .oneHourVolume(oneHourVol)
             .liquidityScore(liquidityScore)

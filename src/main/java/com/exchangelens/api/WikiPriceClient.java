@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -86,7 +87,8 @@ public class WikiPriceClient
                 log.warn("API request failed: {} {}", response.code(), url);
                 return null;
             }
-            return response.body().string();
+            ResponseBody body = response.body();
+            return body != null ? body.string() : null;
         }
         catch (IOException e)
         {

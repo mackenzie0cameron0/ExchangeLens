@@ -161,6 +161,7 @@ public class MarketDataService
             config.minimumRoi() / 100.0,
             config.minimumHourlyVolume(),
             config.maximumCapitalPerFlip(),
+            config.availableCash(),
             config.hideHighRiskItems(),
             config.includeMembersItems(),
             blocklist
