@@ -43,7 +43,6 @@ public class MarketDataService
         scheduler = Executors.newSingleThreadScheduledExecutor(
             r -> { Thread t = new Thread(r, "exchange-lens-refresh"); t.setDaemon(true); return t; });
 
-        loadMapping();
         scheduler.scheduleAtFixedRate(this::refresh, 0,
             config.refreshIntervalSeconds(), TimeUnit.SECONDS);
     }
@@ -73,6 +72,7 @@ public class MarketDataService
     {
         try
         {
+            if (mapping.isEmpty()) loadMapping();
             WikiApiModels.LatestResponse latestResp = client.fetchLatest();
             if (latestResp != null && latestResp.data != null)
             {
