@@ -60,7 +60,8 @@ public class RecommendationEngineTest
     public void resultsSortedByFinalScoreDescending()
     {
         MarketItem highScore = buildItem(4, "High", 1000, 1200, 100, 50000, 5000, 1200, 1000);
-        MarketItem lowScore  = buildItem(5, "Low",  1000, 1020, 100, 50, 5, 1020, 1000);
+        // sell=1030 → tax=20, netMargin=10 (positive, low score due to tiny volume)
+        MarketItem lowScore  = buildItem(5, "Low",  1000, 1030, 100, 50, 5, 1030, 1000);
         List<FlipRecommendation> recs = RecommendationEngine.rank(
             Arrays.asList(lowScore, highScore), 0, 0.0, 0, 100_000_000, false, true, Collections.emptySet());
         assertEquals(2, recs.size());
