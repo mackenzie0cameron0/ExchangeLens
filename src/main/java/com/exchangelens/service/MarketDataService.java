@@ -28,6 +28,7 @@ public class MarketDataService
     private Map<Integer, WikiApiModels.AveragePriceData> oneHourData = new HashMap<>();
     private Instant lastSuccessfulFetch;
     private int cycleCount = 0;
+    private volatile List<FlipRecommendation> lastRecommendations = new ArrayList<>();
 
     @Inject
     public MarketDataService(WikiPriceClient client, StorageService storage, ExchangeLensConfig config)
@@ -66,6 +67,13 @@ public class MarketDataService
     public Instant getLastSuccessfulFetch()
     {
         return lastSuccessfulFetch;
+    }
+
+    public Optional<FlipRecommendation> getRecommendationForItem(int itemId)
+    {
+        return lastRecommendations.stream()
+            .filter(r -> r.getItemId() == itemId)
+            .findFirst();
     }
 
     private void refresh()
@@ -166,6 +174,7 @@ public class MarketDataService
             config.includeMembersItems(),
             blocklist
         );
+        this.lastRecommendations = recs;
         onUpdate.accept(recs);
     }
 
