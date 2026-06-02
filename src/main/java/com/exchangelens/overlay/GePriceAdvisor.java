@@ -58,7 +58,8 @@ public class GePriceAdvisor
         if (!recOpt.isPresent()) return;
 
         FlipRecommendation rec = recOpt.get();
-        boolean isBuy = isCurrentOfferBuy();
+        Boolean isBuy = isCurrentOfferBuy();
+        if (isBuy == null) return;
         int suggestedPrice = isBuy ? strategy.suggestBuyPrice(rec) : strategy.suggestSellPrice(rec);
 
         // Guard against duplicate injection
@@ -97,10 +98,10 @@ public class GePriceAdvisor
         return itemSprite.getItemId();
     }
 
-    private boolean isCurrentOfferBuy()
+    private Boolean isCurrentOfferBuy()
     {
         Widget typeLabel = client.getWidget(162, 17);
-        if (typeLabel == null) return true;
+        if (typeLabel == null) return null;
         return "Buy".equals(typeLabel.getText());
     }
 }

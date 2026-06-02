@@ -37,7 +37,8 @@ public class SlotTracker
         }
         else
         {
-            isBuy[slot] = false;
+            buyPrices[slot] = 0;
+            isBuy[slot]     = false;
         }
     }
 
