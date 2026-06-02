@@ -98,4 +98,34 @@ public interface ExchangeLensConfig extends Config
 	{
 		return true;
 	}
+
+	@ConfigItem(
+		keyName = "showPriceInjection",
+		name = "Show Price Suggestions",
+		description = "Show Exchange Lens suggested price in GE offer screen"
+	)
+	default boolean showPriceInjection()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "colorizeSlots",
+		name = "Colorize GE Slot Prices",
+		description = "Color GE slot price text green/red based on profitability"
+	)
+	default boolean colorizeSlots()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "showTooltipProfit",
+		name = "Show Profit in Tooltip",
+		description = "Show estimated profit in GE sell offer tooltip"
+	)
+	default boolean showTooltipProfit()
+	{
+		return true;
+	}
 }
