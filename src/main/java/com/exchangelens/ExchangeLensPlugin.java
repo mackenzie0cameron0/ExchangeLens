@@ -10,6 +10,12 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import com.exchangelens.overlay.GePriceAdvisor;
+import com.exchangelens.overlay.GeSlotColorizer;
+import com.exchangelens.overlay.GeSellTooltipEnhancer;
+import com.exchangelens.service.SlotTracker;
+import net.runelite.api.Client;
+import net.runelite.client.eventbus.EventBus;
 import javax.inject.Inject;
 import javax.swing.*;
 import java.awt.*;
@@ -28,6 +34,12 @@ public class ExchangeLensPlugin extends Plugin
     @Inject private ExchangeLensPanel panel;
     @Inject private MarketDataService marketDataService;
     @Inject private StorageService storageService;
+    @Inject private Client client;
+    @Inject private EventBus eventBus;
+    @Inject private SlotTracker slotTracker;
+    @Inject private GePriceAdvisor gePriceAdvisor;
+    @Inject private GeSlotColorizer geSlotColorizer;
+    @Inject private GeSellTooltipEnhancer geSellTooltipEnhancer;
 
     private NavigationButton navButton;
 
@@ -58,12 +70,20 @@ public class ExchangeLensPlugin extends Plugin
             .build();
 
         clientToolbar.addNavigation(navButton);
+        eventBus.register(slotTracker);
+        eventBus.register(gePriceAdvisor);
+        eventBus.register(geSlotColorizer);
+        eventBus.register(geSellTooltipEnhancer);
         log.debug("Exchange Lens started");
     }
 
     @Override
     protected void shutDown()
     {
+        eventBus.unregister(geSellTooltipEnhancer);
+        eventBus.unregister(geSlotColorizer);
+        eventBus.unregister(gePriceAdvisor);
+        eventBus.unregister(slotTracker);
         marketDataService.stop();
         clientToolbar.removeNavigation(navButton);
         navButton = null;
