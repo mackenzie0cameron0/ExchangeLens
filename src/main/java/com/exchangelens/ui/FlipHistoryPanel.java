@@ -46,6 +46,7 @@ public class FlipHistoryPanel extends JPanel
         scroll.setBackground(ExchangeLensPanel.BG_PANEL);
         scroll.getViewport().setBackground(ExchangeLensPanel.BG_PANEL);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
         add(scroll, BorderLayout.CENTER);
     }

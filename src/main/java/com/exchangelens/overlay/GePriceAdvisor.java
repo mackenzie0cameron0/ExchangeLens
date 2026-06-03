@@ -9,28 +9,53 @@ import com.exchangelens.service.PriceFormat;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.FontID;
-import net.runelite.api.ScriptID;
 import net.runelite.api.VarClientStr;
-import net.runelite.api.events.ScriptPostFired;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.widgets.JavaScriptCallback;
 import net.runelite.api.widgets.Widget;
-import net.runelite.api.widgets.WidgetInfo;
+import net.runelite.api.widgets.WidgetTextAlignment;
 import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.eventbus.Subscribe;
 import javax.inject.Inject;
 import java.util.Optional;
 
+/**
+ * Injects a clickable "EL price: N" hint into the Grand Exchange price-entry chatbox.
+ *
+ * <p>Widget IDs confirmed via in-game dump on RuneLite 1.12.27:
+ * <ul>
+ *   <li>The offer setup panel is group {@code 465}, child {@code 26}; its "Buy offer"/
+ *       "Sell offer" label tells us the side.</li>
+ *   <li>The item being configured is read from varp {@code 1151} (CURRENT_GE_ITEM).</li>
+ *   <li>The numeric price input lives in the chatbox (group {@code 162}); its prompt reads
+ *       "Set a price for each item:". The hint is injected there — below the prompt, in the
+ *       empty chatbox space — so it never overlaps the offer panel controls.</li>
+ * </ul>
+ */
 @Slf4j
 public class GePriceAdvisor
 {
-    private static final int SCRIPT_GE_OFFER_SETUP  = ScriptID.GE_OFFERS_SETUP_BUILD; // 779
-    private static final String INJECTION_PRICE = "EL price:";
-    private static final String INJECTION_QTY   = "EL qty:";
+    /** GE offer setup panel: group 465, child 26 (gives us the buy/sell side). */
+    private static final int GE_GROUP       = 465;
+    private static final int GE_SETUP_PANEL = 26;
+
+    /** Chatbox group that hosts the numeric price input + its prompt. */
+    private static final int CHATBOX_GROUP = 162;
+
+    /** Varp holding the item id of the offer currently being configured. */
+    private static final int VARP_CURRENT_GE_ITEM = 1151;
+
+    private static final String HINT_PREFIX         = "EL price:";
+    private static final String PRICE_PROMPT_PREFIX = "Set a price";
 
     private final Client client;
     private final MarketDataService marketDataService;
     private final ExchangeLensConfig config;
     private final PriceAdvisorStrategy strategy = new PlusOneStrategy();
+
+    /** Item id / side the current hint reflects, so we only rebuild when something changes. */
+    private int     lastItemId = -1;
+    private boolean lastWasBuy = false;
 
     @Inject
     public GePriceAdvisor(Client client, MarketDataService marketDataService,
@@ -42,110 +67,139 @@ public class GePriceAdvisor
     }
 
     @Subscribe
-    public void onScriptPostFired(ScriptPostFired event)
+    public void onGameTick(GameTick event)
     {
-        // Temporary: log all script IDs when GE container is visible, to verify script IDs
-        Widget geCheck = client.getWidget(WidgetInfo.GRAND_EXCHANGE_OFFER_CONTAINER);
-        if (geCheck != null && !geCheck.isHidden())
+        if (!config.showPriceInjection())
         {
-            log.debug("GE open — script fired: {}", event.getScriptId());
+            lastItemId = -1;
+            return;
         }
 
-        if (event.getScriptId() != SCRIPT_GE_OFFER_SETUP) return;
-        if (!config.showPriceInjection()) return;
-        injectOfferWidgets();
+        // Offer setup panel must be open — it confirms GE setup state and gives the side.
+        Widget panel = client.getWidget(GE_GROUP, GE_SETUP_PANEL);
+        if (panel == null || panel.isHidden())
+        {
+            lastItemId = -1;
+            return;
+        }
+
+        int itemId = client.getVarpValue(VARP_CURRENT_GE_ITEM);
+        if (itemId <= 0)
+        {
+            lastItemId = -1;
+            return;
+        }
+
+        // The clickable hint renders in the chatbox numeric-input area. If the price prompt
+        // isn't showing (e.g. still searching for an item), there's nothing to attach to.
+        Widget prompt = findChatboxPricePrompt();
+        if (prompt == null)
+        {
+            lastItemId = -1;
+            return;
+        }
+        Widget container = prompt.getParent();
+        if (container == null) return;
+
+        boolean isBuy   = isBuyOffer(panel);
+        boolean present = findHint(container) != null;
+
+        // Re-inject if the item changed, the side changed, or the chatbox rebuilt (wiping
+        // our child, so `present` goes false — e.g. after the user types a digit).
+        if (present && itemId == lastItemId && isBuy == lastWasBuy) return;
+
+        if (injectHint(container, prompt, itemId, isBuy))
+        {
+            lastItemId = itemId;
+            lastWasBuy = isBuy;
+        }
     }
 
-    private void injectOfferWidgets()
+    private boolean injectHint(Widget container, Widget prompt, int itemId, boolean isBuy)
     {
-        Widget container = client.getWidget(WidgetInfo.GRAND_EXCHANGE_OFFER_CONTAINER);
-        if (container == null || container.isHidden()) return;
-
-        int itemId = getOfferedItemId();
-        if (itemId <= 0) return;
-
         Optional<FlipRecommendation> recOpt = marketDataService.getRecommendationForItem(itemId);
-        if (!recOpt.isPresent()) return;
-
+        if (!recOpt.isPresent())
+        {
+            log.debug("EL: GE item {} not in current recommendations — no price hint", itemId);
+            return false;
+        }
         FlipRecommendation rec = recOpt.get();
-        Boolean isBuy = isCurrentOfferBuy();
-        if (isBuy == null) return;
-        int suggestedPrice = isBuy ? strategy.suggestBuyPrice(rec) : strategy.suggestSellPrice(rec);
+        final int suggested = isBuy ? strategy.suggestBuyPrice(rec) : strategy.suggestSellPrice(rec);
 
-        // Guard against duplicate injection
-        Widget[] children = container.getDynamicChildren();
-        if (children != null)
-        {
-            for (Widget child : children)
-            {
-                String t = child.getText();
-                if (t != null && (t.startsWith(INJECTION_PRICE) || t.startsWith(INJECTION_QTY))) return;
-            }
-        }
+        Widget hint = container.createChild(-1, WidgetType.TEXT);
+        hint.setText(HINT_PREFIX + " " + PriceFormat.formatExact(suggested) + "  (click to apply)");
+        hint.setTextColor(0xFFD700);
+        hint.setFontId(FontID.PLAIN_12);
+        hint.setTextShadowed(true);
+        hint.setOriginalX(0);
+        hint.setOriginalY(prompt.getOriginalY() + 34);   // below the prompt + cursor line
+        hint.setOriginalWidth(container.getWidth());
+        hint.setOriginalHeight(16);
+        hint.setXTextAlignment(WidgetTextAlignment.CENTER);
+        hint.setYTextAlignment(WidgetTextAlignment.CENTER);
+        hint.setHasListener(true);
+        hint.setAction(0, "Apply EL price");
+        hint.setOnOpListener((JavaScriptCallback) e -> fillPrice(suggested));
+        hint.revalidate();
 
-        int baseY = container.getHeight() - 34;
-
-        // Quantity hint (only on buy offers — qty is fixed for sell)
-        if (isBuy && rec.getBuyLimit() > 0)
-        {
-            final int qty = rec.getBuyLimit();
-            Widget qtyHint = container.createChild(-1, WidgetType.TEXT);
-            qtyHint.setText(INJECTION_QTY + " " + PriceFormat.formatExact(qty) + "  (buy limit)");
-            qtyHint.setTextColor(0xFFD700);
-            qtyHint.setFontId(FontID.PLAIN_11);
-            qtyHint.setOriginalX(0);
-            qtyHint.setOriginalY(baseY);
-            qtyHint.setOriginalWidth(container.getWidth());
-            qtyHint.setOriginalHeight(14);
-            qtyHint.setHasListener(true);
-            qtyHint.setOnOpListener((JavaScriptCallback) e -> fillQuantity(qty));
-            qtyHint.revalidate();
-        }
-
-        // Price hint
-        final int price = suggestedPrice;
-        Widget priceHint = container.createChild(-1, WidgetType.TEXT);
-        priceHint.setText(INJECTION_PRICE + " " + PriceFormat.formatExact(suggestedPrice) + " gp");
-        priceHint.setTextColor(0xFFD700);
-        priceHint.setFontId(FontID.PLAIN_11);
-        priceHint.setOriginalX(0);
-        priceHint.setOriginalY(baseY + 16);
-        priceHint.setOriginalWidth(container.getWidth());
-        priceHint.setOriginalHeight(14);
-        priceHint.setHasListener(true);
-        priceHint.setOnOpListener((JavaScriptCallback) e -> fillPrice(price));
-        priceHint.revalidate();
-
-        log.debug("Injected EL hints: qty={} price={} for item {}", rec.getBuyLimit(), suggestedPrice, itemId);
+        log.debug("EL: injected chatbox price hint {} for item {} (buy={})", suggested, itemId, isBuy);
+        return true;
     }
 
-    private int getOfferedItemId()
-    {
-        Widget itemSprite = client.getWidget(162, 23);
-        if (itemSprite == null) return -1;
-        return itemSprite.getItemId();
-    }
-
+    /**
+     * Writes the suggested price into the GE numeric input. The chatbox numeric prompt is
+     * already active during setup, so setting INPUT_TEXT populates the field; the game's own
+     * redraw reflects it on the next tick.
+     */
     private void fillPrice(int price)
     {
         client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(price));
-        Widget input = client.getWidget(162, 33);
-        if (input != null) input.setText(String.valueOf(price));
-        client.runScript(ScriptID.GE_OFFERS_SETUP_BUILD);
+        log.debug("EL: set GE input text to {}", price);
     }
 
-    private void fillQuantity(int qty)
+    /** Top-level chatbox child whose text is the price prompt ("Set a price for each item:"). */
+    private Widget findChatboxPricePrompt()
     {
-        client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(qty));
-        Widget input = client.getWidget(162, 24);
-        if (input != null) input.setText(String.valueOf(qty));
-        client.runScript(ScriptID.GE_OFFERS_SETUP_BUILD);
+        for (int c = 0; c < 120; c++)
+        {
+            Widget w = client.getWidget(CHATBOX_GROUP, c);
+            if (w != null && w.getText() != null && w.getText().startsWith(PRICE_PROMPT_PREFIX))
+            {
+                return w;
+            }
+        }
+        return null;
     }
 
-    private Boolean isCurrentOfferBuy()
+    /** Our injected hint child within the chatbox container, or null if absent. */
+    private Widget findHint(Widget container)
     {
-        Widget typeLabel = client.getWidget(162, 17);
-        if (typeLabel == null) return null;
-        return "Buy".equals(typeLabel.getText());
+        Widget[] children = container.getDynamicChildren();
+        if (children == null) return null;
+        for (Widget c : children)
+        {
+            if (c != null && !c.isHidden() && c.getText() != null && c.getText().startsWith(HINT_PREFIX))
+            {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    /** Determine offer side from the "Buy offer"/"Sell offer" label inside the setup panel. */
+    private boolean isBuyOffer(Widget panel)
+    {
+        Widget[] children = panel.getDynamicChildren();
+        if (children != null)
+        {
+            for (Widget c : children)
+            {
+                String t = c == null ? null : c.getText();
+                if (t == null) continue;
+                if (t.startsWith("Sell")) return false;
+                if (t.startsWith("Buy"))  return true;
+            }
+        }
+        return true;  // default to buy
     }
 }

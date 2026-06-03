@@ -278,6 +278,7 @@ public class ExchangeLensPanel extends PluginPanel
         scroll.setBackground(BG_PANEL);
         scroll.getViewport().setBackground(BG_PANEL);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
         view.add(top,    BorderLayout.NORTH);
         view.add(scroll, BorderLayout.CENTER);
@@ -334,7 +335,7 @@ public class ExchangeLensPanel extends PluginPanel
         FlipRecommendation top = filtered.get(0);
         heroName.setText(top.getItemName() + (top.isMembers() ? " (m)" : ""));
         heroPrices.setText("Buy " + PriceFormat.formatExact(top.getBuyPrice())
-            + " gp  →  Sell " + PriceFormat.formatExact(top.getSellPrice()) + " gp");
+            + "  →  Sell " + PriceFormat.formatExact(top.getSellPrice()));
         heroStats.setText("+" + PriceFormat.format(top.getNetMargin())
             + " margin  ·  " + PriceFormat.formatRoi(top.getRoi()) + " ROI");
         heroCard.revalidate();
@@ -506,6 +507,7 @@ public class ExchangeLensPanel extends PluginPanel
         scroll.setBackground(BG_PANEL);
         scroll.getViewport().setBackground(BG_PANEL);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
         JPanel view = new JPanel(new BorderLayout());
         view.setBackground(BG_PANEL);
@@ -592,6 +594,7 @@ public class ExchangeLensPanel extends PluginPanel
         scroll.setBorder(null);
         scroll.setBackground(BG_PANEL);
         scroll.getViewport().setBackground(BG_PANEL);
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
         JPanel view = new JPanel(new BorderLayout());
         view.setBackground(BG_PANEL);

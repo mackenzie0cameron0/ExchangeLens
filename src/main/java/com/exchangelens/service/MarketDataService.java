@@ -7,12 +7,14 @@ import com.exchangelens.api.WikiPriceClient;
 import com.exchangelens.model.*;
 import lombok.extern.slf4j.Slf4j;
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 @Slf4j
+@Singleton
 public class MarketDataService
 {
     private final WikiPriceClient client;
