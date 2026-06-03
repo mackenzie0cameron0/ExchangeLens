@@ -29,6 +29,7 @@ public class MarketDataService
     private Instant lastSuccessfulFetch;
     private int cycleCount = 0;
     private volatile List<FlipRecommendation> lastRecommendations = new ArrayList<>();
+    private volatile Map<Integer, MarketItem> marketItemIndex = new HashMap<>();
 
     @Inject
     public MarketDataService(WikiPriceClient client, StorageService storage, ExchangeLensConfig config)
@@ -74,6 +75,17 @@ public class MarketDataService
         return lastRecommendations.stream()
             .filter(r -> r.getItemId() == itemId)
             .findFirst();
+    }
+
+    /**
+     * Returns the most recently merged {@link MarketItem} for the given id, or null if
+     * the item has no mapping entry or no successful fetch has completed yet. Backed by
+     * a volatile snapshot index refreshed on every {@link #notifyUpdate()} cycle, so it
+     * is safe to call from the client thread (e.g. FlipTrackerService at offer time).
+     */
+    public MarketItem getMarketItem(int itemId)
+    {
+        return marketItemIndex.get(itemId);
     }
 
     private void refresh()
@@ -162,6 +174,14 @@ public class MarketDataService
     {
         if (onUpdate == null || latestData.isEmpty()) return;
         List<MarketItem> items = mergeItems();
+
+        // Refresh the lookup index so getMarketItem() sees the latest merged data.
+        // Replace the whole map (volatile) rather than mutating in place, matching the
+        // lock-free idiom used for latestData / lastRecommendations.
+        Map<Integer, MarketItem> index = new HashMap<>();
+        for (MarketItem mi : items) index.put(mi.getItemId(), mi);
+        this.marketItemIndex = index;
+
         Set<Integer> blocklist = storage.loadBlocklist();
         List<FlipRecommendation> recs = RecommendationEngine.rank(
             items,

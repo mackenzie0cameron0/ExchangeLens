@@ -14,6 +14,7 @@ import com.exchangelens.overlay.GePriceAdvisor;
 import com.exchangelens.overlay.GeSlotColorizer;
 import com.exchangelens.overlay.GeSellTooltipEnhancer;
 import com.exchangelens.service.SlotTracker;
+import com.exchangelens.tracker.FlipTrackerService;
 import net.runelite.api.Client;
 import net.runelite.client.eventbus.EventBus;
 import javax.inject.Inject;
@@ -37,6 +38,7 @@ public class ExchangeLensPlugin extends Plugin
     @Inject private Client client;
     @Inject private EventBus eventBus;
     @Inject private SlotTracker slotTracker;
+    @Inject private FlipTrackerService flipTrackerService;
     @Inject private GePriceAdvisor gePriceAdvisor;
     @Inject private GeSlotColorizer geSlotColorizer;
     @Inject private GeSellTooltipEnhancer geSellTooltipEnhancer;
@@ -74,6 +76,13 @@ public class ExchangeLensPlugin extends Plugin
         eventBus.register(gePriceAdvisor);
         eventBus.register(geSlotColorizer);
         eventBus.register(geSellTooltipEnhancer);
+
+        // FlipTracker: push session updates into the panel; reset clears session stats.
+        flipTrackerService.setUpdateListener(panel::updateSession);
+        panel.getSessionStatsPanel().setOnReset(flipTrackerService::resetSession);
+        flipTrackerService.startSession();
+        eventBus.register(flipTrackerService);
+
         log.debug("Exchange Lens started");
     }
 
@@ -84,6 +93,10 @@ public class ExchangeLensPlugin extends Plugin
         eventBus.unregister(geSlotColorizer);
         eventBus.unregister(gePriceAdvisor);
         eventBus.unregister(slotTracker);
+        // Unregister + end the flip session before stopping market data so any final
+        // queued save flushes cleanly.
+        eventBus.unregister(flipTrackerService);
+        flipTrackerService.endSession();
         marketDataService.stop();
         clientToolbar.removeNavigation(navButton);
         navButton = null;
