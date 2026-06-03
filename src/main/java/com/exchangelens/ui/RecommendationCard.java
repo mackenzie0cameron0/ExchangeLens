@@ -5,6 +5,7 @@ import com.exchangelens.model.RiskLevel;
 import com.exchangelens.service.PriceFormat;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
@@ -12,86 +13,97 @@ import java.util.function.Consumer;
 
 public class RecommendationCard extends JPanel
 {
-    private static final Color COLOR_LOW    = new Color(0x40C040);
-    private static final Color COLOR_MEDIUM = new Color(0xE0A800);
-    private static final Color COLOR_HIGH   = new Color(0xE04040);
-    private static final Color BG_CARD      = ColorScheme.DARKER_GRAY_COLOR;
-
-    private final JLabel nameLabel    = new JLabel();
-    private final JLabel priceLabel   = new JLabel();
-    private final JLabel marginLabel  = new JLabel();
-    private final JLabel roiLabel     = new JLabel();
-    private final JLabel riskLabel    = new JLabel();
-    private final JLabel fillLabel    = new JLabel();
-    private final JLabel volumeLabel  = new JLabel();
-    private final JButton watchBtn    = new JButton("Watch");
-    private final JButton blockBtn    = new JButton("Block");
+    private final JLabel nameLabel  = new JLabel();
+    private final JLabel riskBadge  = new JLabel();
+    private final JLabel statsLabel = new JLabel();
+    private final JButton watchBtn  = ExchangeLensPanel.iconButton("★", "Add to watchlist");
+    private final JButton blockBtn  = ExchangeLensPanel.iconButton("✕", "Block item");
 
     public RecommendationCard(Consumer<Integer> onWatch, Consumer<Integer> onBlock)
     {
         setLayout(new BorderLayout(4, 2));
-        setBackground(BG_CARD);
+        setBackground(ExchangeLensPanel.BG_CARD);
         setBorder(new EmptyBorder(6, 8, 6, 8));
 
-        nameLabel.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD, 12f));
+        // Name + risk badge (top row)
+        nameLabel.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
         nameLabel.setForeground(Color.WHITE);
 
-        JPanel infoPanel = new JPanel(new GridLayout(3, 2, 2, 1));
-        infoPanel.setOpaque(false);
-        infoPanel.add(priceLabel);
-        infoPanel.add(marginLabel);
-        infoPanel.add(roiLabel);
-        infoPanel.add(riskLabel);
-        infoPanel.add(fillLabel);
-        infoPanel.add(volumeLabel);
+        riskBadge.setFont(FontManager.getRunescapeSmallFont());
+        riskBadge.setOpaque(true);
+        riskBadge.setBorder(new EmptyBorder(1, 4, 1, 4));
 
-        for (JLabel lbl : new JLabel[]{priceLabel, marginLabel, roiLabel, riskLabel, fillLabel, volumeLabel})
-        {
-            lbl.setFont(FontManager.getRunescapeSmallFont());
-            lbl.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-        }
+        JPanel nameRow = new JPanel(new BorderLayout(4, 0));
+        nameRow.setOpaque(false);
+        nameRow.add(nameLabel, BorderLayout.WEST);
+        nameRow.add(riskBadge, BorderLayout.EAST);
 
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 4, 0));
-        buttonPanel.setOpaque(false);
-        buttonPanel.add(watchBtn);
-        buttonPanel.add(blockBtn);
+        // Stats row (bottom)
+        statsLabel.setFont(FontManager.getRunescapeSmallFont());
+        statsLabel.setForeground(ExchangeLensPanel.TEXT_DIM);
 
-        watchBtn.setFont(FontManager.getRunescapeSmallFont());
-        blockBtn.setFont(FontManager.getRunescapeSmallFont());
-        watchBtn.setFocusPainted(false);
-        blockBtn.setFocusPainted(false);
+        // Action buttons (far right, icon-style)
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        actions.setOpaque(false);
+        watchBtn.setForeground(ExchangeLensPanel.GOLD);
+        blockBtn.setForeground(ExchangeLensPanel.COLOR_HIGH);
+        actions.add(watchBtn);
+        actions.add(blockBtn);
 
-        add(nameLabel, BorderLayout.NORTH);
-        add(infoPanel, BorderLayout.CENTER);
-        add(buttonPanel, BorderLayout.SOUTH);
+        JPanel bottomRow = new JPanel(new BorderLayout());
+        bottomRow.setOpaque(false);
+        bottomRow.add(statsLabel, BorderLayout.WEST);
+        bottomRow.add(actions,   BorderLayout.EAST);
+
+        add(nameRow,   BorderLayout.NORTH);
+        add(bottomRow, BorderLayout.CENTER);
 
         watchBtn.addActionListener(e ->
         {
-            if (watchBtn.getClientProperty("itemId") instanceof Integer)
-                onWatch.accept((Integer) watchBtn.getClientProperty("itemId"));
+            Object id = watchBtn.getClientProperty("itemId");
+            if (id instanceof Integer) onWatch.accept((Integer) id);
         });
         blockBtn.addActionListener(e ->
         {
-            if (blockBtn.getClientProperty("itemId") instanceof Integer)
-                onBlock.accept((Integer) blockBtn.getClientProperty("itemId"));
+            Object id = blockBtn.getClientProperty("itemId");
+            if (id instanceof Integer) onBlock.accept((Integer) id);
         });
     }
 
     public void update(FlipRecommendation rec)
     {
         nameLabel.setText(rec.getItemName() + (rec.isMembers() ? " (m)" : ""));
-        priceLabel.setText("Buy: " + PriceFormat.formatExact(rec.getBuyPrice())
-            + "  Sell: " + PriceFormat.formatExact(rec.getSellPrice()));
-        marginLabel.setText("Margin: " + PriceFormat.format(rec.getNetMargin()));
-        roiLabel.setText("ROI: " + PriceFormat.formatRoi(rec.getRoi()));
-        fillLabel.setText("Fill: " + PriceFormat.formatFillTime(rec.getEstimatedFillMinutes()));
-        volumeLabel.setText("Vol/h: " + rec.getOneHourVolume());
 
-        String riskText = rec.getRiskLevel().name();
-        Color riskColor = rec.getRiskLevel() == RiskLevel.LOW ? COLOR_LOW
-            : rec.getRiskLevel() == RiskLevel.HIGH ? COLOR_HIGH : COLOR_MEDIUM;
-        riskLabel.setText("Risk: " + riskText);
-        riskLabel.setForeground(riskColor);
+        RiskLevel risk = rec.getRiskLevel();
+        String riskText;
+        Color  riskColor;
+        Color  riskFg = Color.BLACK;
+        if (risk == RiskLevel.LOW)
+        {
+            riskText  = "LOW";
+            riskColor = ExchangeLensPanel.COLOR_LOW;
+        }
+        else if (risk == RiskLevel.HIGH)
+        {
+            riskText  = "HIGH";
+            riskColor = ExchangeLensPanel.COLOR_HIGH;
+            riskFg    = Color.WHITE;
+        }
+        else
+        {
+            riskText  = "MED";
+            riskColor = ExchangeLensPanel.COLOR_MED;
+        }
+        riskBadge.setText(riskText);
+        riskBadge.setBackground(riskColor);
+        riskBadge.setForeground(riskFg);
+
+        statsLabel.setText(
+            PriceFormat.formatExact(rec.getBuyPrice()) + " → "
+            + PriceFormat.formatExact(rec.getSellPrice())
+            + "  +" + PriceFormat.format(rec.getNetMargin())
+            + "  " + PriceFormat.formatRoi(rec.getRoi()) + " ROI"
+            + "  " + PriceFormat.formatFillTime(rec.getEstimatedFillMinutes()));
 
         watchBtn.putClientProperty("itemId", rec.getItemId());
         blockBtn.putClientProperty("itemId", rec.getItemId());

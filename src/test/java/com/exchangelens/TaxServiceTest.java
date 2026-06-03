@@ -32,4 +32,21 @@ public class TaxServiceTest
         // 10_000_000 * 0.02 = 200_000
         assertEquals(200_000, TaxService.calculate(10_000_000));
     }
+
+    @Test
+    public void taxIsCappedAtFiveMillion()
+    {
+        // 300M * 0.02 = 6M, but the GE caps per-item tax at 5M.
+        assertEquals(5_000_000, TaxService.calculate(300_000_000));
+        // Just below the cap is uncapped.
+        assertEquals(4_000_000, TaxService.calculate(200_000_000));
+    }
+
+    @Test
+    public void taxUnderFiftyGpIsZero()
+    {
+        // floor(49 * 0.02) = floor(0.98) = 0 — matches the GE's sub-50 exemption.
+        assertEquals(0, TaxService.calculate(49));
+        assertEquals(1, TaxService.calculate(50));
+    }
 }

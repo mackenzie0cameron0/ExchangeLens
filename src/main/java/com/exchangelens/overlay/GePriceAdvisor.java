@@ -9,6 +9,8 @@ import com.exchangelens.service.PriceFormat;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.FontID;
+import net.runelite.api.ScriptID;
+import net.runelite.api.VarClientStr;
 import net.runelite.api.events.ScriptPostFired;
 import net.runelite.api.widgets.JavaScriptCallback;
 import net.runelite.api.widgets.Widget;
@@ -21,8 +23,9 @@ import java.util.Optional;
 @Slf4j
 public class GePriceAdvisor
 {
-    private static final int SCRIPT_GE_OFFER_SETUP = 385;
-    private static final String INJECTION_TAG = "EL_PRICE";
+    private static final int SCRIPT_GE_OFFER_SETUP  = ScriptID.GE_OFFERS_SETUP_BUILD; // 779
+    private static final String INJECTION_PRICE = "EL price:";
+    private static final String INJECTION_QTY   = "EL qty:";
 
     private final Client client;
     private final MarketDataService marketDataService;
@@ -41,12 +44,19 @@ public class GePriceAdvisor
     @Subscribe
     public void onScriptPostFired(ScriptPostFired event)
     {
+        // Temporary: log all script IDs when GE container is visible, to verify script IDs
+        Widget geCheck = client.getWidget(WidgetInfo.GRAND_EXCHANGE_OFFER_CONTAINER);
+        if (geCheck != null && !geCheck.isHidden())
+        {
+            log.debug("GE open — script fired: {}", event.getScriptId());
+        }
+
         if (event.getScriptId() != SCRIPT_GE_OFFER_SETUP) return;
         if (!config.showPriceInjection()) return;
-        injectPriceWidget();
+        injectOfferWidgets();
     }
 
-    private void injectPriceWidget()
+    private void injectOfferWidgets()
     {
         Widget container = client.getWidget(WidgetInfo.GRAND_EXCHANGE_OFFER_CONTAINER);
         if (container == null || container.isHidden()) return;
@@ -68,27 +78,45 @@ public class GePriceAdvisor
         {
             for (Widget child : children)
             {
-                if (child.getText() != null && child.getText().startsWith(INJECTION_TAG)) return;
+                String t = child.getText();
+                if (t != null && (t.startsWith(INJECTION_PRICE) || t.startsWith(INJECTION_QTY))) return;
             }
         }
 
+        int baseY = container.getHeight() - 34;
+
+        // Quantity hint (only on buy offers — qty is fixed for sell)
+        if (isBuy && rec.getBuyLimit() > 0)
+        {
+            final int qty = rec.getBuyLimit();
+            Widget qtyHint = container.createChild(-1, WidgetType.TEXT);
+            qtyHint.setText(INJECTION_QTY + " " + PriceFormat.formatExact(qty) + "  (buy limit)");
+            qtyHint.setTextColor(0xFFD700);
+            qtyHint.setFontId(FontID.PLAIN_11);
+            qtyHint.setOriginalX(0);
+            qtyHint.setOriginalY(baseY);
+            qtyHint.setOriginalWidth(container.getWidth());
+            qtyHint.setOriginalHeight(14);
+            qtyHint.setHasListener(true);
+            qtyHint.setOnOpListener((JavaScriptCallback) e -> fillQuantity(qty));
+            qtyHint.revalidate();
+        }
+
+        // Price hint
+        final int price = suggestedPrice;
         Widget priceHint = container.createChild(-1, WidgetType.TEXT);
-        priceHint.setText(INJECTION_TAG + "Set to Exchange Lens price: "
-                + PriceFormat.formatExact(suggestedPrice) + " gp");
+        priceHint.setText(INJECTION_PRICE + " " + PriceFormat.formatExact(suggestedPrice) + " gp");
         priceHint.setTextColor(0xFFD700);
         priceHint.setFontId(FontID.PLAIN_11);
         priceHint.setOriginalX(0);
-        priceHint.setOriginalY(container.getHeight() - 20);
+        priceHint.setOriginalY(baseY + 16);
         priceHint.setOriginalWidth(container.getWidth());
-        priceHint.setOriginalHeight(16);
+        priceHint.setOriginalHeight(14);
         priceHint.setHasListener(true);
-
-        final int price = suggestedPrice;
-        priceHint.setOnOpListener((JavaScriptCallback) e ->
-                client.runScript(SCRIPT_GE_OFFER_SETUP, price));
-
+        priceHint.setOnOpListener((JavaScriptCallback) e -> fillPrice(price));
         priceHint.revalidate();
-        log.debug("Injected EL price hint: {} gp for item {}", suggestedPrice, itemId);
+
+        log.debug("Injected EL hints: qty={} price={} for item {}", rec.getBuyLimit(), suggestedPrice, itemId);
     }
 
     private int getOfferedItemId()
@@ -96,6 +124,22 @@ public class GePriceAdvisor
         Widget itemSprite = client.getWidget(162, 23);
         if (itemSprite == null) return -1;
         return itemSprite.getItemId();
+    }
+
+    private void fillPrice(int price)
+    {
+        client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(price));
+        Widget input = client.getWidget(162, 33);
+        if (input != null) input.setText(String.valueOf(price));
+        client.runScript(ScriptID.GE_OFFERS_SETUP_BUILD);
+    }
+
+    private void fillQuantity(int qty)
+    {
+        client.setVarcStrValue(VarClientStr.INPUT_TEXT, String.valueOf(qty));
+        Widget input = client.getWidget(162, 24);
+        if (input != null) input.setText(String.valueOf(qty));
+        client.runScript(ScriptID.GE_OFFERS_SETUP_BUILD);
     }
 
     private Boolean isCurrentOfferBuy()

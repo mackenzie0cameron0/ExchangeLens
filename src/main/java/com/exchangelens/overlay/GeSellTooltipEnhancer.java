@@ -17,7 +17,7 @@ import java.util.Optional;
 @Slf4j
 public class GeSellTooltipEnhancer
 {
-    private static final int SCRIPT_GE_TOOLTIP = 526;
+    private static final int SCRIPT_GE_TOOLTIP = 526; // verify: may need updating
     private static final int TOOLTIP_GROUP     = 193;
     private static final int TOOLTIP_CHILD     = 0;
 
@@ -67,10 +67,12 @@ public class GeSellTooltipEnhancer
                     ? slotTracker.getBuyPrice(slot)
                     : rec.getBuyPrice();
 
+            int qty           = slotTracker.getQuantity(slot);
             int tax           = TaxService.calculate(sellPrice);
             int profitPerItem = sellPrice - tax - buyPrice;
+            int totalProfit   = profitPerItem * (qty > 0 ? qty : 1);
 
-            tooltip.setText(existing + "<br>Profit: " + PriceFormat.formatExact(profitPerItem) + " gp");
+            tooltip.setText(existing + "<br>Profit: " + PriceFormat.formatExact(totalProfit) + " gp");
             tooltip.setOriginalHeight(tooltip.getOriginalHeight() + 14);
             tooltip.revalidate();
             return;

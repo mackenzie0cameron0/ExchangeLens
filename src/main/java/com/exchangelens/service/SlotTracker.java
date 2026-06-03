@@ -8,12 +8,13 @@ import javax.inject.Singleton;
 @Singleton
 public class SlotTracker
 {
-    private final int[]     buyPrices = new int[8];
-    private final int[]     itemIds   = new int[8];
-    private final boolean[] isBuy     = new boolean[8];
+    private final int[]     buyPrices  = new int[8];
+    private final int[]     itemIds    = new int[8];
+    private final int[]     quantities = new int[8];
+    private final boolean[] isBuy      = new boolean[8];
 
     @Subscribe
-    public void onOfferChanged(GrandExchangeOfferChanged event)
+    public void onGrandExchangeOfferChanged(GrandExchangeOfferChanged event)
     {
         int slot = event.getSlot();
         if (slot < 0 || slot >= 8) return;
@@ -23,13 +24,15 @@ public class SlotTracker
                 || state == GrandExchangeOfferState.CANCELLED_BUY
                 || state == GrandExchangeOfferState.CANCELLED_SELL)
         {
-            buyPrices[slot] = 0;
-            itemIds[slot]   = 0;
-            isBuy[slot]     = false;
+            buyPrices[slot]  = 0;
+            itemIds[slot]    = 0;
+            quantities[slot] = 0;
+            isBuy[slot]      = false;
             return;
         }
 
-        itemIds[slot] = event.getOffer().getItemId();
+        itemIds[slot]    = event.getOffer().getItemId();
+        quantities[slot] = event.getOffer().getTotalQuantity();
         if (state == GrandExchangeOfferState.BUYING || state == GrandExchangeOfferState.BOUGHT)
         {
             buyPrices[slot] = event.getOffer().getPrice();
@@ -42,7 +45,8 @@ public class SlotTracker
         }
     }
 
-    public int     getBuyPrice(int slot) { return buyPrices[slot]; }
-    public int     getItemId(int slot)   { return itemIds[slot]; }
-    public boolean isBuySlot(int slot)   { return isBuy[slot]; }
+    public int     getBuyPrice(int slot)  { return buyPrices[slot]; }
+    public int     getItemId(int slot)    { return itemIds[slot]; }
+    public int     getQuantity(int slot)  { return quantities[slot]; }
+    public boolean isBuySlot(int slot)    { return isBuy[slot]; }
 }

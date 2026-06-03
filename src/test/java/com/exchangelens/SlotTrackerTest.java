@@ -31,7 +31,7 @@ public class SlotTrackerTest
     public void recordsBuyPriceAndItemId()
     {
         SlotTracker tracker = new SlotTracker();
-        tracker.onOfferChanged(buildEvent(0, 4151, 1_950_000, GrandExchangeOfferState.BUYING));
+        tracker.onGrandExchangeOfferChanged(buildEvent(0, 4151, 1_950_000, GrandExchangeOfferState.BUYING));
         assertEquals(1_950_000, tracker.getBuyPrice(0));
         assertEquals(4151, tracker.getItemId(0));
         assertTrue(tracker.isBuySlot(0));
@@ -41,8 +41,8 @@ public class SlotTrackerTest
     public void clearsSlotOnEmpty()
     {
         SlotTracker tracker = new SlotTracker();
-        tracker.onOfferChanged(buildEvent(0, 4151, 1_950_000, GrandExchangeOfferState.BUYING));
-        tracker.onOfferChanged(buildEvent(0, 0, 0, GrandExchangeOfferState.EMPTY));
+        tracker.onGrandExchangeOfferChanged(buildEvent(0, 4151, 1_950_000, GrandExchangeOfferState.BUYING));
+        tracker.onGrandExchangeOfferChanged(buildEvent(0, 0, 0, GrandExchangeOfferState.EMPTY));
         assertEquals(0, tracker.getBuyPrice(0));
         assertEquals(0, tracker.getItemId(0));
         assertFalse(tracker.isBuySlot(0));
@@ -52,7 +52,7 @@ public class SlotTrackerTest
     public void sellSlotNotFlaggedAsBuy()
     {
         SlotTracker tracker = new SlotTracker();
-        tracker.onOfferChanged(buildEvent(2, 4151, 2_000_000, GrandExchangeOfferState.SELLING));
+        tracker.onGrandExchangeOfferChanged(buildEvent(2, 4151, 2_000_000, GrandExchangeOfferState.SELLING));
         assertFalse(tracker.isBuySlot(2));
         assertEquals(4151, tracker.getItemId(2));
     }
@@ -61,8 +61,8 @@ public class SlotTrackerTest
     public void independentSlotsDoNotInterfere()
     {
         SlotTracker tracker = new SlotTracker();
-        tracker.onOfferChanged(buildEvent(0, 1001, 500, GrandExchangeOfferState.BUYING));
-        tracker.onOfferChanged(buildEvent(3, 1002, 1000, GrandExchangeOfferState.BUYING));
+        tracker.onGrandExchangeOfferChanged(buildEvent(0, 1001, 500, GrandExchangeOfferState.BUYING));
+        tracker.onGrandExchangeOfferChanged(buildEvent(3, 1002, 1000, GrandExchangeOfferState.BUYING));
         assertEquals(500,  tracker.getBuyPrice(0));
         assertEquals(1000, tracker.getBuyPrice(3));
         assertEquals(1001, tracker.getItemId(0));

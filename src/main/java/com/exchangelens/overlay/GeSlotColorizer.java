@@ -16,7 +16,7 @@ import java.util.Optional;
 @Slf4j
 public class GeSlotColorizer
 {
-    private static final int SCRIPT_GE_SLOT_REDRAW = 149;
+    private static final int SCRIPT_GE_SLOT_REDRAW = 4730; // observed in-game; 149 was wrong
     private static final int GE_SLOT_GROUP = 465;
     private static final int GE_SLOT_CHILD_BASE = 7;
     private static final int PRICE_TEXT_CHILD = 15;
