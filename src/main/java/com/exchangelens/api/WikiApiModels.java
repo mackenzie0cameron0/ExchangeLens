@@ -45,4 +45,18 @@ public final class WikiApiModels
         public int highalch;
         public String examine;
     }
+
+    public static class TimeseriesResponse
+    {
+        public java.util.List<TimeseriesPoint> data;
+    }
+
+    public static class TimeseriesPoint
+    {
+        public long    timestamp;
+        public Integer avgHighPrice;    // boxed — null when no trades in bucket
+        public Integer avgLowPrice;
+        public Integer highPriceVolume;
+        public Integer lowPriceVolume;
+    }
 }
