@@ -59,6 +59,12 @@ public class WikiPriceClient
         }
     }
 
+    public WikiApiModels.TimeseriesResponse fetchTimeseries(int itemId, String timestep)
+    {
+        String url = BASE_URL + "timeseries?timestep=" + timestep + "&id=" + itemId;
+        return fetch(url, WikiApiModels.TimeseriesResponse.class);
+    }
+
     private <T> T fetch(String url, Class<T> type)
     {
         String body = fetchRaw(url);
