@@ -23,14 +23,15 @@ public class PriceChartComponent extends JComponent
     private static final int MARGIN_TOP    = 8;
     private static final int MARGIN_BOTTOM = 36;
     private static final int MARKER_HALF   = 6;  // half-size of marker triangle
+    private static final double VOLUME_BAND_FRACTION = 0.15;  // bottom share of plot height for volume bars
 
     private static final Color BG         = new Color(0x1C1C1C);
     private static final Color GRID       = new Color(0x2A2A2A);
     private static final Color AXIS_LABEL = new Color(0x707070);
     private static final Color CROSSHAIR  = new Color(0x505050);
     private static final Color TOOLTIP_BG = new Color(0x2C2C2C);
-    private static final Color VOL_HIGH   = new Color(0x5E, 0x7F, 0xFF, 40);
-    private static final Color VOL_LOW    = new Color(0xFF, 0x9B, 0x44, 40);
+    private static final Color VOL_HIGH   = new Color(0x5E, 0x7F, 0xFF, 52);
+    private static final Color VOL_LOW    = new Color(0xFF, 0x9B, 0x44, 52);
 
     private static final DateTimeFormatter HOUR_FMT =
         DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
@@ -304,7 +305,7 @@ public class PriceChartComponent extends JComponent
     private void drawVolume(Graphics2D g2, int left, int right, int top, int bottom)
     {
         int volBottom = bottom;
-        int volTop    = bottom - (int) ((bottom - top) * 0.15);
+        int volTop    = bottom - (int) ((bottom - top) * VOLUME_BAND_FRACTION);
         double maxVol = 0;
         for (double v : model.highVolumes) if (v > maxVol) maxVol = v;
         for (double v : model.lowVolumes)  if (v > maxVol) maxVol = v;
@@ -349,6 +350,37 @@ public class PriceChartComponent extends JComponent
             {
                 hoveredTooltip = m.tooltip;
                 return;
+            }
+        }
+
+        // Volume band (bottom strip): show the nearest bucket's high/low traded volume.
+        if (model.volumeTimestamps != null && model.volumeTimestamps.length > 0
+            && model.highVolumes != null && model.lowVolumes != null
+            && mouseX >= left && mouseX <= right)
+        {
+            int volBottom = bottom;
+            int volTop    = bottom - (int) ((bottom - top) * VOLUME_BAND_FRACTION);
+            if (mouseY >= volTop && mouseY <= volBottom)
+            {
+                double maxVol = 0;
+                for (double v : model.highVolumes) if (v > maxVol) maxVol = v;
+                for (double v : model.lowVolumes)  if (v > maxVol) maxVol = v;
+                if (maxVol > 0)
+                {
+                    int idx = 0, bestDx = Integer.MAX_VALUE;
+                    for (int i = 0; i < model.volumeTimestamps.length; i++)
+                    {
+                        int dx = Math.abs(mouseX - ChartScale.timeToPixelX(
+                            model.volumeTimestamps[i], model.xMin, model.xMax, left, right));
+                        if (dx < bestDx) { bestDx = dx; idx = i; }
+                    }
+                    hoverSnapX = ChartScale.timeToPixelX(
+                        model.volumeTimestamps[idx], model.xMin, model.xMax, left, right);
+                    hoveredTooltip = formatTimestamp(model.volumeTimestamps[idx])
+                        + "\nHigh vol: " + PriceFormat.formatExact((long) model.highVolumes[idx])
+                        + "\nLow vol: "  + PriceFormat.formatExact((long) model.lowVolumes[idx]);
+                    return;
+                }
             }
         }
 
