@@ -19,11 +19,13 @@ import java.awt.*;
 public class FlipHistoryWindow extends JFrame
 {
     private static final String VIEW_OVERVIEW = "overview";
+    private static final String VIEW_RECS     = "recs";
     private static final String VIEW_DETAIL   = "detail";
 
     private final CardLayout             cardLayout = new CardLayout();
     private final JPanel                 cardPanel  = new JPanel(cardLayout);
     private final OverviewDashboardPanel overviewPanel;
+    private final RecommendationsPanel   recommendationsPanel;
     private final ItemDetailPanel        itemDetailPanel;
     private final HistoryDataService     dataService;
     private final JLabel                 accountLabel = new JLabel();
@@ -31,12 +33,14 @@ public class FlipHistoryWindow extends JFrame
 
     @Inject
     public FlipHistoryWindow(OverviewDashboardPanel overviewPanel,
+                             RecommendationsPanel   recommendationsPanel,
                              ItemDetailPanel        itemDetailPanel,
                              HistoryDataService     dataService)
     {
-        this.overviewPanel   = overviewPanel;
-        this.itemDetailPanel = itemDetailPanel;
-        this.dataService     = dataService;
+        this.overviewPanel        = overviewPanel;
+        this.recommendationsPanel = recommendationsPanel;
+        this.itemDetailPanel      = itemDetailPanel;
+        this.dataService          = dataService;
 
         setTitle("Exchange Lens — Flip History");
         setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
@@ -44,9 +48,11 @@ public class FlipHistoryWindow extends JFrame
         setMinimumSize(new Dimension(700, 480));
 
         overviewPanel.setOnItemSelected(this::openItemDetail);
+        recommendationsPanel.setOnRecSelected(this::openRecommendationDetail);
 
-        cardPanel.add(overviewPanel,   VIEW_OVERVIEW);
-        cardPanel.add(itemDetailPanel, VIEW_DETAIL);
+        cardPanel.add(overviewPanel,        VIEW_OVERVIEW);
+        cardPanel.add(recommendationsPanel, VIEW_RECS);
+        cardPanel.add(itemDetailPanel,      VIEW_DETAIL);
 
         setLayout(new BorderLayout());
         add(buildTopBar(), BorderLayout.NORTH);
@@ -73,6 +79,7 @@ public class FlipHistoryWindow extends JFrame
             loadedFlips = flips;
             overviewPanel.update(flips);
         });
+        recommendationsPanel.refresh();
     }
 
     /**
@@ -83,6 +90,16 @@ public class FlipHistoryWindow extends JFrame
     public void openItemDetail(int itemId, String itemName)
     {
         itemDetailPanel.loadItem(itemId, itemName, loadedFlips);
+        cardLayout.show(cardPanel, VIEW_DETAIL);
+    }
+
+    /**
+     * Opens the detail chart for a recommended item, overlaying the suggested
+     * buy/sell prices. Called from RecommendationsPanel row-click. EDT only.
+     */
+    public void openRecommendationDetail(com.exchangelens.model.FlipRecommendation rec)
+    {
+        itemDetailPanel.loadItem(rec.getItemId(), rec.getItemName(), loadedFlips, rec);
         cardLayout.show(cardPanel, VIEW_DETAIL);
     }
 
@@ -101,12 +118,24 @@ public class FlipHistoryWindow extends JFrame
         overviewBtn.setFocusPainted(false);
         overviewBtn.addActionListener(e -> cardLayout.show(cardPanel, VIEW_OVERVIEW));
 
+        JButton recsBtn = new JButton("Recommendations");
+        recsBtn.setBackground(new Color(0x3C3C3C));
+        recsBtn.setForeground(Color.WHITE);
+        recsBtn.setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
+        recsBtn.setFocusPainted(false);
+        recsBtn.addActionListener(e ->
+        {
+            recommendationsPanel.refresh();
+            cardLayout.show(cardPanel, VIEW_RECS);
+        });
+
         accountLabel.setFont(FontManager.getRunescapeSmallFont());
         accountLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         left.setOpaque(false);
         left.add(overviewBtn);
+        left.add(recsBtn);
         left.add(accountLabel);
 
         bar.add(left, BorderLayout.WEST);
