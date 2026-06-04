@@ -113,7 +113,8 @@ public class PriceChartComponent extends JComponent
                 return;
             }
             if (model == null
-                || (model.series.isEmpty() && model.markers.isEmpty()))
+                || (model.series.isEmpty() && model.markers.isEmpty()
+                    && model.refLines.isEmpty()))
             {
                 drawCentered(g2, "No data", AXIS_LABEL);
                 return;
