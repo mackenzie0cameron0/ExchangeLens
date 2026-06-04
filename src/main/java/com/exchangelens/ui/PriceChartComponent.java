@@ -36,11 +36,17 @@ public class PriceChartComponent extends JComponent
         DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter DATE_FMT =
         DateTimeFormatter.ofPattern("MM/dd").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter HOVER_DATETIME_FMT =
+        DateTimeFormatter.ofPattern("MM/dd HH:mm").withZone(ZoneId.systemDefault());
 
     private ChartModel model;
     private String     noDataMessage;
     private int        mouseX = -1, mouseY = -1;
     private String     hoveredTooltip;
+
+    // Hover state for line-series readout: snapped crosshair x and highlight dots ({x, y, rgb}).
+    private int                 hoverSnapX = -1;
+    private final List<int[]>   hoverDots  = new ArrayList<>();
 
     // Cached y-bounds from last paint (needed for hover hit-testing)
     private double paintYMin, paintYMax;
@@ -65,6 +71,8 @@ public class PriceChartComponent extends JComponent
                 mouseX = -1;
                 mouseY = -1;
                 hoveredTooltip = null;
+                hoverSnapX = -1;
+                hoverDots.clear();
                 repaint();
             }
         });
@@ -141,13 +149,24 @@ public class PriceChartComponent extends JComponent
 
             if (mouseX >= left && mouseX <= right && mouseY >= top && mouseY <= bottom)
             {
+                int vx = hoverSnapX >= 0 ? hoverSnapX : mouseX;
                 g2.setColor(CROSSHAIR);
                 float[] dash = {4f, 4f};
                 g2.setStroke(new BasicStroke(1f, BasicStroke.CAP_BUTT,
                     BasicStroke.JOIN_MITER, 1f, dash, 0f));
-                g2.drawLine(mouseX, top,  mouseX, bottom);
-                g2.drawLine(left,   mouseY, right, mouseY);
+                g2.drawLine(vx,   top,  vx,   bottom);
+                g2.drawLine(left, mouseY, right, mouseY);
                 g2.setStroke(new BasicStroke(1f));
+
+                // Highlight the sampled point(s) the readout refers to.
+                for (int[] d : hoverDots)
+                {
+                    g2.setColor(new Color(d[2]));
+                    g2.fillOval(d[0] - 3, d[1] - 3, 6, 6);
+                    g2.setColor(Color.WHITE);
+                    g2.drawOval(d[0] - 3, d[1] - 3, 6, 6);
+                }
+
                 if (hoveredTooltip != null) drawTooltip(g2, hoveredTooltip, mouseX, mouseY);
             }
         }
@@ -286,11 +305,15 @@ public class PriceChartComponent extends JComponent
     private void updateHover()
     {
         hoveredTooltip = null;
+        hoverSnapX = -1;
+        hoverDots.clear();
         if (model == null || mouseX < 0) return;
         int left   = MARGIN_LEFT;
         int right  = getWidth()  - MARGIN_RIGHT;
         int top    = MARGIN_TOP;
         int bottom = getHeight() - MARGIN_BOTTOM;
+
+        // Markers take priority — they carry richer per-trade tooltips.
         for (ChartModel.Marker m : model.markers)
         {
             int x = ChartScale.timeToPixelX(m.timestamp, model.xMin, model.xMax, left, right);
@@ -301,20 +324,73 @@ public class PriceChartComponent extends JComponent
                 return;
             }
         }
+
+        // Otherwise, read the nearest sample on each line series at the cursor's x.
+        if (mouseX < left || mouseX > right || mouseY < top || mouseY > bottom) return;
+        if (model.series.isEmpty()) return;
+
+        boolean       multi   = model.series.size() > 1;
+        long          hoverTs = -1;
+        int           bestDx  = Integer.MAX_VALUE;
+        StringBuilder sb      = new StringBuilder();
+
+        for (ChartModel.Series s : model.series)
+        {
+            if (s.timestamps == null || s.values == null || s.timestamps.length == 0) continue;
+
+            int idx = -1, idxDx = Integer.MAX_VALUE;
+            for (int i = 0; i < s.timestamps.length; i++)
+            {
+                if (s.skipZeroValues && s.values[i] == 0) continue;
+                int x  = ChartScale.timeToPixelX(s.timestamps[i], model.xMin, model.xMax, left, right);
+                int dx = Math.abs(mouseX - x);
+                if (dx < idxDx) { idxDx = dx; idx = i; }
+            }
+            if (idx < 0) continue;
+
+            int px = ChartScale.timeToPixelX(s.timestamps[idx], model.xMin, model.xMax, left, right);
+            int py = ChartScale.valueToPixelY(s.values[idx], paintYMin, paintYMax, top, bottom);
+            hoverDots.add(new int[]{px, py, (s.color != null ? s.color : Color.WHITE).getRGB()});
+
+            if (idxDx < bestDx) { bestDx = idxDx; hoverSnapX = px; hoverTs = s.timestamps[idx]; }
+
+            if (sb.length() > 0) sb.append('\n');
+            String val = PriceFormat.formatExact((long) s.values[idx]);
+            sb.append(multi && s.label != null ? s.label + ": " + val : val);
+        }
+
+        if (sb.length() == 0) return;
+        hoveredTooltip = (hoverTs >= 0 ? formatTimestamp(hoverTs) + "\n" : "") + sb;
+    }
+
+    private String formatTimestamp(long ts)
+    {
+        long range = model.xMax - model.xMin;
+        DateTimeFormatter fmt = range <= 86400 ? HOUR_FMT : HOVER_DATETIME_FMT;
+        return fmt.format(Instant.ofEpochSecond(ts));
     }
 
     private void drawTooltip(Graphics2D g2, String text, int x, int y)
     {
         g2.setFont(new Font("SansSerif", Font.PLAIN, 10));
         FontMetrics fm = g2.getFontMetrics();
-        int w = fm.stringWidth(text) + 10;
-        int h = fm.getHeight() + 6;
+        String[] lines = text.split("\n");
+        int textW = 0;
+        for (String ln : lines) textW = Math.max(textW, fm.stringWidth(ln));
+        int lineH = fm.getHeight();
+        int w = textW + 10;
+        int h = lineH * lines.length + 6;
         int tx = Math.min(x + 12, getWidth()  - w - 4);
         int ty = Math.max(y - h - 4, 2);
         g2.setColor(TOOLTIP_BG);
         g2.fillRoundRect(tx, ty, w, h, 5, 5);
         g2.setColor(Color.WHITE);
-        g2.drawString(text, tx + 5, ty + fm.getAscent() + 3);
+        int by = ty + fm.getAscent() + 3;
+        for (String ln : lines)
+        {
+            g2.drawString(ln, tx + 5, by);
+            by += lineH;
+        }
     }
 
     private void drawCentered(Graphics2D g2, String text, Color color)
