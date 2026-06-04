@@ -13,7 +13,7 @@ public class RecommendationRowTest
     {
         return FlipRecommendation.builder()
             .itemId(4151).itemName("Abyssal whip")
-            .netMargin(233).roi(0.0061)
+            .netMargin(233).roi(0.0050)
             .riskLevel(RiskLevel.LOW).finalScore(0.61)
             .estimatedFillMinutes(2.0)
             .buyPrice(37900).sellPrice(38911)
@@ -27,7 +27,7 @@ public class RecommendationRowTest
         assertEquals(4151, row.itemId);
         assertEquals("Abyssal whip", row.itemName);
         assertEquals(233, row.margin);
-        assertEquals(0.61, row.roiPercent, 0.0001);   // roi (0.0061) × 100
+        assertEquals(0.50, row.roiPercent, 0.0001);   // roi (0.0050) × 100 — distinct from finalScore 0.61
         assertEquals(RiskLevel.LOW, row.risk);
         assertEquals(0.61, row.score, 0.0001);
         assertEquals(2.0, row.fillMinutes, 0.0001);
