@@ -156,10 +156,11 @@ public class RecommendationsPanel extends JPanel
             @Override public void mouseClicked(MouseEvent e)
             {
                 int viewRow = t.getSelectedRow();
-                if (viewRow < 0 || onRecSelected == null) return;
+                Consumer<FlipRecommendation> cb = onRecSelected;
+                if (viewRow < 0 || cb == null) return;
                 int modelRow = t.convertRowIndexToModel(viewRow);
                 if (modelRow >= 0 && modelRow < currentRecs.size())
-                    onRecSelected.accept(currentRecs.get(modelRow));
+                    cb.accept(currentRecs.get(modelRow));
             }
         });
         return t;
