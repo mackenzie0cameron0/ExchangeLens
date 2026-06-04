@@ -17,7 +17,9 @@ import com.exchangelens.service.SlotTracker;
 import com.exchangelens.tracker.FlipTrackerService;
 import net.runelite.api.Client;
 import net.runelite.client.eventbus.EventBus;
+import com.exchangelens.ui.FlipHistoryWindow;
 import javax.inject.Inject;
+import javax.inject.Provider;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -42,6 +44,9 @@ public class ExchangeLensPlugin extends Plugin
     @Inject private GePriceAdvisor gePriceAdvisor;
     @Inject private GeSlotColorizer geSlotColorizer;
     @Inject private GeSellTooltipEnhancer geSellTooltipEnhancer;
+    @Inject private Provider<FlipHistoryWindow> flipHistoryWindowProvider;
+    private FlipHistoryWindow flipHistoryWindow;
+    private String lastKnownAccount;
 
     private NavigationButton navButton;
 
@@ -78,9 +83,14 @@ public class ExchangeLensPlugin extends Plugin
         eventBus.register(geSellTooltipEnhancer);
 
         // FlipTracker: push session updates into the panel; reset clears session stats.
-        flipTrackerService.setUpdateListener(panel::updateSession);
+        flipTrackerService.setUpdateListener((stats, flips) ->
+        {
+            if (!flips.isEmpty()) lastKnownAccount = flips.get(0).getAccountName();
+            panel.updateSession(stats, flips);
+        });
         panel.getSessionStatsPanel().setOnReset(flipTrackerService::resetSession);
         flipTrackerService.startSession();
+        panel.setOnOpenHistoryChart(this::openFlipHistoryWindow);
         eventBus.register(flipTrackerService);
 
         log.debug("Exchange Lens started");
@@ -99,6 +109,11 @@ public class ExchangeLensPlugin extends Plugin
         flipTrackerService.endSession();
         marketDataService.stop();
         clientToolbar.removeNavigation(navButton);
+        if (flipHistoryWindow != null)
+        {
+            flipHistoryWindow.dispose();
+            flipHistoryWindow = null;
+        }
         navButton = null;
         log.debug("Exchange Lens stopped");
     }
@@ -130,5 +145,19 @@ public class ExchangeLensPlugin extends Plugin
             g.dispose();
             return img;
         }
+    }
+
+    private void openFlipHistoryWindow()
+    {
+        SwingUtilities.invokeLater(() ->
+        {
+            if (flipHistoryWindow == null)
+                flipHistoryWindow = flipHistoryWindowProvider.get();
+            String name = client.getLocalPlayer() != null
+                ? client.getLocalPlayer().getName()
+                : lastKnownAccount;
+            if (name != null)
+                flipHistoryWindow.open(name);
+        });
     }
 }

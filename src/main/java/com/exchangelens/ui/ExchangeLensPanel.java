@@ -48,6 +48,7 @@ public class ExchangeLensPanel extends PluginPanel
     private String         searchQuery    = "";
     private String         currentView    = "main";
     private Runnable       onManualRefresh;
+    private Runnable       openHistoryChart;
 
     // ── Shared header components ──────────────────────────────────────────────
     private final JLabel statusLabel = new JLabel("Loading...");
@@ -123,6 +124,7 @@ public class ExchangeLensPanel extends PluginPanel
     }
 
     public void setOnManualRefresh(Runnable callback) { this.onManualRefresh = callback; }
+    public void setOnOpenHistoryChart(Runnable callback) { this.openHistoryChart = callback; }
 
     public void updateRecommendations(List<FlipRecommendation> recs, Instant lastFetch, boolean stale)
     {
@@ -224,6 +226,9 @@ public class ExchangeLensPanel extends PluginPanel
         historyBtn.addActionListener(e -> showView("history".equals(currentView)   ? "main" : "history"));
         starBtn.addActionListener(e -> showView("watchlist".equals(currentView) ? "main" : "watchlist"));
         gearBtn.addActionListener(e -> showView("settings".equals(currentView)  ? "main" : "settings"));
+        JButton chartBtn = iconButton("↗", "Flip history chart");
+        chartBtn.addActionListener(e -> { if (openHistoryChart != null) openHistoryChart.run(); });
+        nav.add(chartBtn);
         nav.add(sessionBtn);
         nav.add(historyBtn);
         nav.add(starBtn);
