@@ -72,6 +72,15 @@ public class MarketDataService
         return lastSuccessfulFetch;
     }
 
+    /**
+     * The most recently ranked recommendations (volatile snapshot from the last
+     * successful market fetch). Never null; empty until the first fetch completes.
+     */
+    public List<FlipRecommendation> getLastRecommendations()
+    {
+        return lastRecommendations;
+    }
+
     public Optional<FlipRecommendation> getRecommendationForItem(int itemId)
     {
         return lastRecommendations.stream()
