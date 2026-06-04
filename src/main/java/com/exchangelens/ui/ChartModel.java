@@ -40,9 +40,18 @@ public class ChartModel
         public int sellMarkerIndex;
     }
 
+    /** A horizontal reference line at a constant value (e.g. a suggested buy/sell price). */
+    public static class RefLine
+    {
+        public double value;
+        public Color  color;
+        public String label;   // drawn at the right edge; may be null
+    }
+
     public List<Series>     series      = new ArrayList<>();
     public List<Marker>     markers     = new ArrayList<>();
     public List<Connection> connections = new ArrayList<>();
+    public List<RefLine>    refLines    = new ArrayList<>();
 
     /** Visible time window (epoch seconds). */
     public long xMin;
