@@ -29,6 +29,8 @@ public class PriceChartComponent extends JComponent
     private static final Color AXIS_LABEL = new Color(0x707070);
     private static final Color CROSSHAIR  = new Color(0x505050);
     private static final Color TOOLTIP_BG = new Color(0x2C2C2C);
+    private static final Color VOL_HIGH   = new Color(0x5E, 0x7F, 0xFF, 40);
+    private static final Color VOL_LOW    = new Color(0xFF, 0x9B, 0x44, 40);
 
     private static final DateTimeFormatter HOUR_FMT =
         DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
@@ -120,7 +122,7 @@ public class PriceChartComponent extends JComponent
             {
                 List<Double> all = new ArrayList<>();
                 for (ChartModel.Series s : model.series)
-                    for (double v : s.values) if (v > 0) all.add(v);
+                    for (double v : s.values) if (!s.skipZeroValues || v > 0) all.add(v);
                 for (ChartModel.Marker m : model.markers) all.add(m.value);
                 double[] b = ChartScale.autoScaleBounds(
                     all.stream().mapToDouble(Double::doubleValue).toArray(), 0.08);
@@ -197,7 +199,7 @@ public class PriceChartComponent extends JComponent
         int px = -1, py = -1;
         for (int i = 0; i < s.timestamps.length; i++)
         {
-            if (s.values[i] == 0) { px = -1; continue; }
+            if (s.skipZeroValues && s.values[i] == 0) { px = -1; continue; }
             int x = ChartScale.timeToPixelX(s.timestamps[i], model.xMin, model.xMax, left, right);
             int y = ChartScale.valueToPixelY(s.values[i], yMin, yMax, top, bottom);
             if (px >= 0) g2.drawLine(px, py, x, y);
@@ -269,13 +271,13 @@ public class PriceChartComponent extends JComponent
             if (model.highVolumes[i] > 0)
             {
                 int h = (int) (model.highVolumes[i] / maxVol * (volBottom - volTop));
-                g2.setColor(new Color(0x5E, 0x7F, 0xFF, 40));
+                g2.setColor(VOL_HIGH);
                 g2.fillRect(x - barW / 2, volBottom - h, barW, h);
             }
             if (model.lowVolumes[i] > 0)
             {
                 int h = (int) (model.lowVolumes[i] / maxVol * (volBottom - volTop));
-                g2.setColor(new Color(0xFF, 0x9B, 0x44, 40));
+                g2.setColor(VOL_LOW);
                 g2.fillRect(x - barW / 2, volBottom - h, barW / 2, h);
             }
         }

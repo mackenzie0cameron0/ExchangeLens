@@ -111,8 +111,9 @@ public class ExchangeLensPlugin extends Plugin
         clientToolbar.removeNavigation(navButton);
         if (flipHistoryWindow != null)
         {
-            flipHistoryWindow.dispose();
+            final FlipHistoryWindow w = flipHistoryWindow;
             flipHistoryWindow = null;
+            SwingUtilities.invokeLater(w::dispose);
         }
         navButton = null;
         log.debug("Exchange Lens stopped");

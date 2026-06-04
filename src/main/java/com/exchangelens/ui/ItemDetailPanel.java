@@ -153,11 +153,10 @@ public class ItemDetailPanel extends JPanel
 
     private void addMarkers(ChartModel model)
     {
-        List<Integer> buyIdx  = new ArrayList<>();
-        List<Integer> sellIdx = new ArrayList<>();
-
         for (FlipRecord flip : currentFlips)
         {
+            int thisBuyIdx = -1;
+
             if (flip.getBuyOffer() != null)
             {
                 long ts = flip.getBuyOffer().getCompletedAt();
@@ -170,10 +169,11 @@ public class ItemDetailPanel extends JPanel
                     m.isUp      = true;
                     m.tooltip   = flip.getQuantity() + " × "
                         + PriceFormat.formatExact(flip.getBuyPrice()) + "  buy";
-                    buyIdx.add(model.markers.size());
+                    thisBuyIdx = model.markers.size();
                     model.markers.add(m);
                 }
             }
+
             if (flip.getSellOffer() != null)
             {
                 long ts = flip.getSellOffer().getCompletedAt();
@@ -186,20 +186,27 @@ public class ItemDetailPanel extends JPanel
                     m.isUp      = false;
                     m.tooltip   = flip.getQuantity() + " × "
                         + PriceFormat.formatExact(flip.getSellPrice())
-                        + "  +" + PriceFormat.format(flip.getTotalNetProfit());
-                    sellIdx.add(model.markers.size());
+                        + "  " + signedProfit(flip.getTotalNetProfit());
+                    int sellMarkerIdx = model.markers.size();
                     model.markers.add(m);
 
-                    if (!buyIdx.isEmpty())
+                    // Only connect when THIS flip's buy marker is also visible.
+                    if (thisBuyIdx >= 0)
                     {
                         ChartModel.Connection conn = new ChartModel.Connection();
-                        conn.buyMarkerIndex  = buyIdx.get(buyIdx.size() - 1);
-                        conn.sellMarkerIndex = sellIdx.get(sellIdx.size() - 1);
+                        conn.buyMarkerIndex  = thisBuyIdx;
+                        conn.sellMarkerIndex = sellMarkerIdx;
                         model.connections.add(conn);
                     }
                 }
             }
         }
+    }
+
+    /** Formats profit with an explicit leading sign: "+1.2k" / "-500". */
+    private static String signedProfit(long profit)
+    {
+        return (profit >= 0 ? "+" : "-") + PriceFormat.format(Math.abs(profit));
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────

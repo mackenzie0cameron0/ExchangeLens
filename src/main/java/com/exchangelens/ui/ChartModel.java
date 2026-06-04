@@ -15,9 +15,12 @@ public class ChartModel
     {
         public String  label;
         public long[]  timestamps;   // epoch seconds, parallel with values[]
-        public double[] values;      // 0.0 treated as "no data" — skip this point
+        public double[] values;      // when skipZeroValues, 0.0 means "no data" and is skipped
         public Color   color;
         public float   strokeWidth = 1.5f;
+        /** When true (default), 0.0 values are treated as gaps. Set false for series
+         *  that can legitimately be zero or negative (e.g. cumulative profit). */
+        public boolean skipZeroValues = true;
     }
 
     /** A single trade marker rendered as a triangle (▲ buy, ▼ sell). */

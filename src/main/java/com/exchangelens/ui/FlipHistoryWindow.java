@@ -27,6 +27,7 @@ public class FlipHistoryWindow extends JFrame
     private final ItemDetailPanel        itemDetailPanel;
     private final HistoryDataService     dataService;
     private final JLabel                 accountLabel = new JLabel();
+    private java.util.List<com.exchangelens.model.FlipRecord> loadedFlips = java.util.Collections.emptyList();
 
     @Inject
     public FlipHistoryWindow(OverviewDashboardPanel overviewPanel,
@@ -67,7 +68,11 @@ public class FlipHistoryWindow extends JFrame
         toFront();
         requestFocus();
 
-        dataService.loadFlips(accountName, overviewPanel::update);
+        dataService.loadFlips(accountName, flips ->
+        {
+            loadedFlips = flips;
+            overviewPanel.update(flips);
+        });
     }
 
     /**
@@ -77,11 +82,8 @@ public class FlipHistoryWindow extends JFrame
      */
     public void openItemDetail(int itemId, String itemName)
     {
-        dataService.loadFlips(accountLabel.getText(), flips ->
-        {
-            itemDetailPanel.loadItem(itemId, itemName, flips);
-            cardLayout.show(cardPanel, VIEW_DETAIL);
-        });
+        itemDetailPanel.loadItem(itemId, itemName, loadedFlips);
+        cardLayout.show(cardPanel, VIEW_DETAIL);
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────

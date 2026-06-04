@@ -96,6 +96,7 @@ public class OverviewDashboardPanel extends JPanel
             ChartModel.Series s = new ChartModel.Series();
             s.label = "Cumulative Profit"; s.timestamps = ts; s.values = vals;
             s.color = GREEN; s.strokeWidth = 1.5f;
+            s.skipZeroValues = false;  // cumulative profit may be zero or negative
             model.series.add(s);
             chart.setModel(model);
         }
