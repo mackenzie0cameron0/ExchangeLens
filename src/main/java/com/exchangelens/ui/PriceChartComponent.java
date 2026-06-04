@@ -132,6 +132,7 @@ public class PriceChartComponent extends JComponent
                 for (ChartModel.Series s : model.series)
                     for (double v : s.values) if (!s.skipZeroValues || v > 0) all.add(v);
                 for (ChartModel.Marker m : model.markers) all.add(m.value);
+                for (ChartModel.RefLine r : model.refLines) all.add(r.value);
                 double[] b = ChartScale.autoScaleBounds(
                     all.stream().mapToDouble(Double::doubleValue).toArray(), 0.08);
                 yMin = b[0]; yMax = b[1];
@@ -143,6 +144,7 @@ public class PriceChartComponent extends JComponent
                 drawVolume(g2, left, right, top, bottom);
             for (ChartModel.Series s : model.series)
                 drawSeries(g2, s, left, right, top, bottom, yMin, yMax);
+            drawRefLines(g2, left, right, top, bottom, yMin, yMax);
             drawConnections(g2, left, right, top, bottom, yMin, yMax);
             for (ChartModel.Marker m : model.markers)
                 drawMarker(g2, m, left, right, top, bottom, yMin, yMax);
@@ -225,6 +227,30 @@ public class PriceChartComponent extends JComponent
             px = x; py = y;
         }
         g2.setStroke(new BasicStroke(1f));
+    }
+
+    private void drawRefLines(Graphics2D g2, int left, int right, int top, int bottom,
+                               double yMin, double yMax)
+    {
+        if (model.refLines.isEmpty()) return;
+        g2.setFont(new Font("SansSerif", Font.PLAIN, 9));
+        FontMetrics fm = g2.getFontMetrics();
+        float[] dash = {5f, 4f};
+        for (ChartModel.RefLine r : model.refLines)
+        {
+            int y = ChartScale.valueToPixelY(r.value, yMin, yMax, top, bottom);
+            if (y < top || y > bottom) continue;
+            g2.setColor(r.color);
+            g2.setStroke(new BasicStroke(1f, BasicStroke.CAP_BUTT,
+                BasicStroke.JOIN_MITER, 1f, dash, 0f));
+            g2.drawLine(left, y, right, y);
+            g2.setStroke(new BasicStroke(1f));
+            if (r.label != null)
+            {
+                int lw = fm.stringWidth(r.label);
+                g2.drawString(r.label, right - lw - 2, y - 3);
+            }
+        }
     }
 
     private void drawMarker(Graphics2D g2, ChartModel.Marker m,
