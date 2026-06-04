@@ -169,13 +169,21 @@ public class ExchangeLensPanel extends PluginPanel
             public void mouseClicked(java.awt.event.MouseEvent e) { showView("main"); }
         });
 
+        JButton chartBtn = iconButton("↗", "Flip history chart");
+        chartBtn.addActionListener(e -> { if (openHistoryChart != null) openHistoryChart.run(); });
+
         JButton refreshBtn = iconButton("↻", "Refresh market data");
         refreshBtn.addActionListener(e -> { if (onManualRefresh != null) onManualRefresh.run(); });
+
+        JPanel titleButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        titleButtons.setOpaque(false);
+        titleButtons.add(chartBtn);
+        titleButtons.add(refreshBtn);
 
         JPanel titleRow = new JPanel(new BorderLayout());
         titleRow.setOpaque(false);
         titleRow.add(title, BorderLayout.WEST);
-        titleRow.add(refreshBtn, BorderLayout.EAST);
+        titleRow.add(titleButtons, BorderLayout.EAST);
 
         // Status
         statusLabel.setFont(FontManager.getRunescapeSmallFont());
@@ -226,9 +234,6 @@ public class ExchangeLensPanel extends PluginPanel
         historyBtn.addActionListener(e -> showView("history".equals(currentView)   ? "main" : "history"));
         starBtn.addActionListener(e -> showView("watchlist".equals(currentView) ? "main" : "watchlist"));
         gearBtn.addActionListener(e -> showView("settings".equals(currentView)  ? "main" : "settings"));
-        JButton chartBtn = iconButton("↗", "Flip history chart");
-        chartBtn.addActionListener(e -> { if (openHistoryChart != null) openHistoryChart.run(); });
-        nav.add(chartBtn);
         nav.add(sessionBtn);
         nav.add(historyBtn);
         nav.add(starBtn);
