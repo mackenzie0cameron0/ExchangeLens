@@ -46,7 +46,7 @@ public class ExchangeLensPlugin extends Plugin
     @Inject private GeSellTooltipEnhancer geSellTooltipEnhancer;
     @Inject private Provider<FlipHistoryWindow> flipHistoryWindowProvider;
     private FlipHistoryWindow flipHistoryWindow;
-    private String lastKnownAccount;
+    private volatile String lastKnownAccount;
 
     private NavigationButton navButton;
 
