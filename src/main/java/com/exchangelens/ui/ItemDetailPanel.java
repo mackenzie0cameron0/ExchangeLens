@@ -2,6 +2,7 @@ package com.exchangelens.ui;
 
 import com.exchangelens.api.WikiApiModels;
 import com.exchangelens.model.FlipRecord;
+import com.exchangelens.model.FlipRecommendation;
 import com.exchangelens.service.HistoryDataService;
 import com.exchangelens.service.PriceFormat;
 import net.runelite.client.ui.ColorScheme;
@@ -46,6 +47,7 @@ public class ItemDetailPanel extends JPanel
     private int              currentItemId;
     private List<FlipRecord> currentFlips = Collections.emptyList();
     private int              selectedRange = 1; // default = 1D
+    private FlipRecommendation currentRec;   // non-null when opened from the Recommendations tab
 
     @Inject
     public ItemDetailPanel(HistoryDataService dataService)
@@ -58,10 +60,21 @@ public class ItemDetailPanel extends JPanel
         add(buildFlipScroll(), BorderLayout.SOUTH);
     }
 
-    /** Called on EDT by FlipHistoryWindow. */
+    /** Overview→detail entry point (no recommendation overlay). Called on EDT. */
     public void loadItem(int itemId, String itemName, List<FlipRecord> allFlips)
     {
+        loadItem(itemId, itemName, allFlips, null);
+    }
+
+    /**
+     * Called on EDT by FlipHistoryWindow. When {@code rec} is non-null, the chart
+     * overlays the suggested buy (green) and sell (red) prices as reference lines.
+     */
+    public void loadItem(int itemId, String itemName, List<FlipRecord> allFlips,
+                         FlipRecommendation rec)
+    {
         currentItemId  = itemId;
+        currentRec     = rec;
         currentFlips   = allFlips.stream()
             .filter(f -> f.getItemId() == itemId && f.getSellOffer() != null)
             .collect(Collectors.toList());
@@ -131,6 +144,7 @@ public class ItemDetailPanel extends JPanel
         model.lowVolumes       = lowVol;
 
         addMarkers(model);
+        addRefLines(model);
         return model;
     }
 
@@ -140,6 +154,7 @@ public class ItemDetailPanel extends JPanel
         model.xMin = xMin;
         model.xMax = xMax;
         addMarkers(model);
+        addRefLines(model);
         return model;
     }
 
@@ -201,6 +216,23 @@ public class ItemDetailPanel extends JPanel
                 }
             }
         }
+    }
+
+    private void addRefLines(ChartModel model)
+    {
+        if (currentRec == null) return;
+
+        ChartModel.RefLine buy = new ChartModel.RefLine();
+        buy.value = currentRec.getBuyPrice();
+        buy.color = GREEN;
+        buy.label = "buy " + String.format("%,d", currentRec.getBuyPrice());
+        model.refLines.add(buy);
+
+        ChartModel.RefLine sell = new ChartModel.RefLine();
+        sell.value = currentRec.getSellPrice();
+        sell.color = RED;
+        sell.label = "sell " + String.format("%,d", currentRec.getSellPrice());
+        model.refLines.add(sell);
     }
 
     /** Formats profit with an explicit leading sign: "+1.2k" / "-500". */
